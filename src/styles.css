@@ -60,7 +60,7 @@ input:focus-visible {
 }
 
 .fallback-gradient {
-  z-index: -4;
+  z-index: 0;
   background:
     radial-gradient(90% 75% at 16% 18%, rgba(76, 121, 151, .62), transparent 60%),
     radial-gradient(72% 74% at 82% 72%, rgba(19, 42, 91, .86), transparent 66%),
@@ -68,7 +68,7 @@ input:focus-visible {
 }
 
 .amll-background {
-  z-index: -3;
+  z-index: 1;
   display: block !important;
   transform: scale(1.075);
   opacity: .94;
@@ -76,7 +76,7 @@ input:focus-visible {
 }
 
 .background-wash {
-  z-index: -2;
+  z-index: 2;
   background:
     linear-gradient(90deg, rgba(0,0,0,.10) 0%, rgba(0,0,0,.015) 43%, rgba(0,0,0,.08) 100%),
     radial-gradient(circle at 50% 44%, transparent 30%, rgba(0,0,0,.08) 72%, rgba(0,0,0,.30) 135%);
@@ -88,7 +88,7 @@ input:focus-visible {
 
 .apple-layout {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   display: grid;
   grid-template-columns: .455fr .545fr;
   width: 100%;
