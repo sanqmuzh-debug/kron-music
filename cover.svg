@@ -1,0 +1,43 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="140" y1="80" x2="1040" y2="1120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5AA7C6"/>
+      <stop offset="0.42" stop-color="#123C73"/>
+      <stop offset="1" stop-color="#070C29"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(250 230) rotate(48) scale(540 510)">
+      <stop stop-color="#9FE1E9" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#2C5DA9" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="line" x1="130" y1="850" x2="1090" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C8F3F2" stop-opacity="0.02"/>
+      <stop offset="0.55" stop-color="#A7E7ED" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#6BA8E9" stop-opacity="0.03"/>
+    </linearGradient>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="26"/>
+    </filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="table" tableValues="0 0.1"/></feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="1200" height="1200" fill="url(#bg)"/>
+  <rect width="1200" height="1200" fill="url(#glow)"/>
+  <g filter="url(#blur)" opacity="0.9">
+    <ellipse cx="890" cy="870" rx="370" ry="180" fill="#07134C"/>
+    <ellipse cx="420" cy="690" rx="430" ry="170" fill="#2A71A4" fill-opacity="0.4"/>
+  </g>
+  <g opacity="0.72">
+    <path d="M-30 790C166 706 303 736 455 800C638 877 791 818 924 740C1058 662 1147 667 1242 701" stroke="url(#line)" stroke-width="19" stroke-linecap="round"/>
+    <path d="M-28 852C166 789 300 817 468 868C654 925 817 889 951 814C1067 749 1160 754 1237 784" stroke="#D3F6F6" stroke-opacity="0.13" stroke-width="8" stroke-linecap="round"/>
+    <path d="M-30 912C176 868 342 883 514 925C708 972 864 944 1008 879C1100 838 1176 833 1241 850" stroke="#81C9E6" stroke-opacity="0.14" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <circle cx="830" cy="421" r="10" fill="#D8FFFF" fill-opacity="0.62"/>
+  <circle cx="846" cy="442" r="4" fill="#D8FFFF" fill-opacity="0.36"/>
+  <text x="92" y="104" fill="white" fill-opacity="0.86" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="600" letter-spacing="10">KRON</text>
+  <text x="90" y="1080" fill="white" fill-opacity="0.94" font-family="Arial, Helvetica, sans-serif" font-size="112" font-weight="700" letter-spacing="-5">MIDNIGHT</text>
+  <text x="92" y="1150" fill="#B7E4F0" fill-opacity="0.8" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="500" letter-spacing="20">TIDE</text>
+  <rect width="1200" height="1200" filter="url(#grain)" opacity="0.22"/>
+</svg>
