@@ -5,11 +5,16 @@ Apple Music-inspired full-screen lyric player built on the mature [Apple Music-l
 ## What is included
 
 - AMLL synchronized lyric renderer and fluid album-art background
-- 60fps `requestAnimationFrame` playback clock for the demo
+- Real `HTMLAudioElement` playback clock with play, pause, seek, skip, ended and queue handling
+- AMLL's imperative `setCurrentTime` / `update` loop, with spring, blur and scale lyric motion
 - Full-screen desktop layout matching the supplied Apple Music references
 - Responsive mobile layout
-- Seek bar, play/pause and skip controls
+- Seek bar, play/pause, skip controls and previous/next imported tracks
+- Local multi-file import for audio, LRC/TTML lyrics and cover art
+- URL parameters: `music`, `lyric`, `cover`, `title`, `artist`
 - Auto-hiding player chrome and ambient background pulse
+
+The repository includes a generated public-domain WAV tone, an LRC file and the existing SVG cover in `public/demo` for local testing. The audio is intentionally synthetic so the repository does not redistribute a commercial recording.
 
 ## Local development
 
