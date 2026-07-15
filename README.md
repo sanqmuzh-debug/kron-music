@@ -31,3 +31,5 @@ The workflow publishes the compiled site to the `gh-pages` branch. A repository-
 ## License note
 
 AMLL is licensed under AGPL-3.0-only. Review its license requirements before production distribution.
+
+<!-- preview-ci -->
