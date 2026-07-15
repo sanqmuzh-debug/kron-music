@@ -2,21 +2,31 @@ import { BackgroundRender, LyricPlayer } from "@applemusic-like-lyrics/react";
 import type { LyricPlayerRef } from "@applemusic-like-lyrics/react";
 import { parseLrc, parseTTML } from "@applemusic-like-lyrics/lyric";
 import type { LyricLine, LyricPlayerBase } from "@applemusic-like-lyrics/core";
-import type {
-  CSSProperties,
-  ChangeEvent,
-  MutableRefObject,
-  RefObject,
-  SVGProps,
-} from "react";
+import type { CSSProperties, ChangeEvent, MutableRefObject, RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+  browseCategories,
+  demoTracks,
+  librarySections,
+  madeForYou,
+  newReleases,
+  radioStations,
+  recentlyPlayed,
+  type CatalogItem,
+} from "./apple-music-data";
+
+type Tab = "home" | "new" | "radio" | "library" | "search";
+type Overlay = "player" | "lyrics" | "queue" | "account" | null;
+
+type Track = {
+  audio: string;
+  lyric: string;
+  cover: string;
+  title: string;
+  artist: string;
+  lyricName?: string;
+  art?: string;
+};
 
 const DEMO_LRC = `[00:00.000]Breathe in, let the midnight settle
 [00:04.000]Blue light moving slow across the room
@@ -37,99 +47,38 @@ const DEMO_TRACK: Track = {
   cover: "./cover.svg",
   title: "Midnight Tide",
   artist: "Kron — Afterglow",
+  art: "art-ocean",
 };
 
-type Track = {
-  audio: string;
-  lyric: string;
-  cover: string;
-  title: string;
-  artist: string;
-  lyricName?: string;
-};
+const glyphs = {
+  home: "⌂",
+  new: "✦",
+  radio: "◉",
+  library: "♫",
+  search: "⌕",
+  back: "‹",
+  down: "⌄",
+  more: "•••",
+  play: "▶︎",
+  pause: "Ⅱ",
+  previous: "|◀︎",
+  next: "▶︎|",
+  lyrics: "❞",
+  queue: "≡",
+  shuffle: "⇄",
+  repeat: "↻",
+  volumeLow: "◖",
+  volumeHigh: "◗",
+  add: "+",
+  check: "✓",
+  download: "↓",
+  profile: "K",
+} as const;
 
-type IconProps = SVGProps<SVGSVGElement>;
+type GlyphName = keyof typeof glyphs;
 
-function MenuIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <path d="M5 7.25h14M5 12h14M5 16.75h14" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function MoreIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
-      <circle cx="5.25" cy="12" r="1.7" />
-      <circle cx="12" cy="12" r="1.7" />
-      <circle cx="18.75" cy="12" r="1.7" />
-    </svg>
-  );
-}
-
-function PlayIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 28 28" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M8.6 5.55c0-1.1 1.2-1.78 2.15-1.2l12.02 7.32a2.72 2.72 0 0 1 0 4.66l-12.02 7.32c-.95.58-2.15-.1-2.15-1.2V5.55Z" />
-    </svg>
-  );
-}
-
-function PauseIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 28 28" fill="currentColor" aria-hidden="true" {...props}>
-      <rect x="7.4" y="5" width="4.55" height="18" rx="1.45" />
-      <rect x="16.05" y="5" width="4.55" height="18" rx="1.45" />
-    </svg>
-  );
-}
-
-function PreviousIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 28 28" fill="currentColor" aria-hidden="true" {...props}>
-      <rect x="5.2" y="6.1" width="2.2" height="15.8" rx="1.1" />
-      <path d="M21.8 7.17c0-1.04-1.16-1.66-2.03-1.08L9.97 12.6a1.67 1.67 0 0 0 0 2.8l9.8 6.51c.87.58 2.03-.04 2.03-1.08V7.17Z" />
-    </svg>
-  );
-}
-
-function NextIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 28 28" fill="currentColor" aria-hidden="true" {...props}>
-      <rect x="20.6" y="6.1" width="2.2" height="15.8" rx="1.1" />
-      <path d="M6.2 7.17c0-1.04 1.16-1.66 2.03-1.08l9.8 6.51a1.67 1.67 0 0 1 0 2.8l-9.8 6.51c-.87.58-2.03-.04-2.03-1.08V7.17Z" />
-    </svg>
-  );
-}
-
-function LyricsIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <path d="M5.25 5.5h13.5a2.25 2.25 0 0 1 2.25 2.25v7.5a2.25 2.25 0 0 1-2.25 2.25h-7.4l-3.55 2.7v-2.7H5.25A2.25 2.25 0 0 1 3 15.25v-7.5A2.25 2.25 0 0 1 5.25 5.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-      <circle cx="8" cy="11.5" r="1" fill="currentColor" />
-      <circle cx="12" cy="11.5" r="1" fill="currentColor" />
-      <circle cx="16" cy="11.5" r="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-function ChevronIcon({ direction = "left", ...props }: IconProps & { direction?: "left" | "right" | "up" | "down" }) {
-  const rotate = direction === "right" ? 180 : direction === "up" ? 90 : direction === "down" ? -90 : 0;
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ transform: `rotate(${rotate}deg)` }} {...props}>
-      <path d="m14.5 5-7 7 7 7" stroke="currentColor" strokeWidth="2.15" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function RestartIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <path d="M6.5 8.2H3.8V5.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M4.3 8.1A8 8 0 1 1 5.6 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
+function Glyph({ name, className = "" }: { name: GlyphName; className?: string }) {
+  return <span aria-hidden="true" className={`system-glyph ${className}`}>{glyphs[name]}</span>;
 }
 
 function normalizeLines(lines: LyricLine[]) {
@@ -143,62 +92,70 @@ function fallbackLines() {
   return normalizeLines(parseLrc(DEMO_LRC));
 }
 
+function parseLyricText(text: string, name = "") {
+  const isTtml = /\.ttml$|\.dfxp$/i.test(name) || /<tt(?:\s|>)/i.test(text);
+  return normalizeLines(isTtml ? parseTTML(text).lines : parseLrc(text));
+}
+
 function resolveAsset(value: string) {
   if (/^(blob:|data:|https?:\/\/)/i.test(value)) return value;
   return new URL(value.replace(/^\/+/, ""), document.baseURI).toString();
 }
 
+function trackFromQuery(): Track {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    ...DEMO_TRACK,
+    ...(params.get("music") ? { audio: resolveAsset(params.get("music")!) } : {}),
+    ...(params.get("lyric") ? { lyric: resolveAsset(params.get("lyric")!), lyricName: params.get("lyric")! } : {}),
+    ...(params.get("cover") ? { cover: resolveAsset(params.get("cover")!), art: undefined } : {}),
+    ...(params.get("title") ? { title: params.get("title")! } : {}),
+    ...(params.get("artist") ? { artist: params.get("artist")! } : {}),
+  };
+}
+
 function formatTime(seconds: number) {
   const total = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(total / 60);
-  return `${minutes}:${(total % 60).toString().padStart(2, "0")}`;
+  return `${minutes}:${String(total % 60).padStart(2, "0")}`;
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function parseLyricText(text: string, name = "") {
-  const isTtml = /\.ttml$|\.dfxp$/i.test(name) || /<tt(?:\s|>)/i.test(text);
-  return normalizeLines(isTtml ? parseTTML(text).lines : parseLrc(text));
-}
-
-function trackFromQuery() {
-  const params = new URLSearchParams(window.location.search);
-  return {
-    ...DEMO_TRACK,
-    ...(params.get("music") ? { audio: resolveAsset(params.get("music")!) } : {}),
-    ...(params.get("lyric") ? { lyric: resolveAsset(params.get("lyric")!), lyricName: params.get("lyric")! } : {}),
-    ...(params.get("cover") ? { cover: resolveAsset(params.get("cover")!) } : {}),
-    ...(params.get("title") ? { title: params.get("title")! } : {}),
-    ...(params.get("artist") ? { artist: params.get("artist")! } : {}),
-  };
-}
-
 function getFileTitle(fileName: string) {
   return fileName.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim() || "Untitled";
+}
+
+function Artwork({ item, className = "" }: { item: Pick<Track, "cover" | "art" | "title">; className?: string }) {
+  if (item.art) {
+    return <div role="img" aria-label={`${item.title} artwork`} className={`artwork ${item.art} ${className}`}><span>{item.title}</span></div>;
+  }
+  return <img className={`artwork ${className}`} src={item.cover} alt={`${item.title} artwork`} />;
+}
+
+function CatalogArtwork({ item, className = "" }: { item: CatalogItem; className?: string }) {
+  return <div role="img" aria-label={`${item.title} artwork`} className={`artwork ${item.art} ${className}`}><span>{item.title}</span></div>;
 }
 
 function LyricsView({
   audioRef,
   lyricLines,
   playing,
-  reducedMotion,
-  alignPosition,
   syncRef,
+  reducedMotion,
+  alignPosition = 0.46,
 }: {
   audioRef: RefObject<HTMLAudioElement | null>;
   lyricLines: LyricLine[];
   playing: boolean;
-  reducedMotion: boolean;
-  alignPosition: number;
   syncRef: MutableRefObject<((time: number, isSeek?: boolean) => void) | null>;
+  reducedMotion: boolean;
+  alignPosition?: number;
 }) {
   const [corePlayer, setCorePlayer] = useState<LyricPlayerBase | null>(null);
-
-  const attachPlayer = useCallback((value: LyricPlayerRef | null) => {
-    setCorePlayer(value?.lyricPlayer ?? null);
-  }, []);
+  const attachPlayer = useCallback((value: LyricPlayerRef | null) => setCorePlayer(value?.lyricPlayer ?? null), []);
 
   useEffect(() => {
     if (!corePlayer) return;
@@ -206,16 +163,15 @@ function LyricsView({
     corePlayer.setEnableSpring(!reducedMotion);
     corePlayer.setEnableBlur(true);
     corePlayer.setEnableScale(true);
-    corePlayer.setOverscanPx(600);
+    corePlayer.setOverscanPx(640);
     void corePlayer.calcLayout(true, false);
     corePlayer.update();
-  }, [corePlayer, lyricLines, reducedMotion, audioRef]);
+  }, [audioRef, corePlayer, lyricLines, reducedMotion]);
 
   useEffect(() => {
     if (!corePlayer) return;
     const sync = (time: number, isSeek = false) => {
-      const next = Math.max(0, Math.round(time));
-      corePlayer.setCurrentTime(next, isSeek);
+      corePlayer.setCurrentTime(Math.max(0, Math.round(time)), isSeek);
       if (isSeek) void corePlayer.calcLayout(false, false);
       corePlayer.update();
     };
@@ -229,19 +185,16 @@ function LyricsView({
     if (!corePlayer) return;
     if (playing) corePlayer.resume();
     else corePlayer.pause();
-
     let frame = 0;
     let lastTime = performance.now();
     const update = (now: number) => {
       const audio = audioRef.current;
-      const audioTime = audio ? audio.currentTime * 1000 : 0;
       const delta = Math.min(now - lastTime, 48);
       lastTime = now;
-      corePlayer.setCurrentTime(Math.round(audioTime));
+      corePlayer.setCurrentTime(Math.round((audio?.currentTime ?? 0) * 1000));
       corePlayer.update(delta);
-      if (!audio || (!audio.paused && !audio.ended)) frame = requestAnimationFrame(update);
+      if (audio && !audio.paused && !audio.ended) frame = requestAnimationFrame(update);
     };
-
     frame = requestAnimationFrame(update);
     return () => cancelAnimationFrame(frame);
   }, [audioRef, corePlayer, playing]);
@@ -264,29 +217,176 @@ function LyricsView({
   );
 }
 
+function SectionTitle({ title, action }: { title: string; action?: string }) {
+  return (
+    <div className="section-title">
+      <h2>{title}</h2>
+      {action && <button type="button">{action}</button>}
+    </div>
+  );
+}
+
+function MediaCard({ item, onSelect, wide = false }: { item: CatalogItem; onSelect: (item: CatalogItem) => void; wide?: boolean }) {
+  return (
+    <button type="button" className={`media-card ${wide ? "wide" : ""}`} onClick={() => onSelect(item)}>
+      <CatalogArtwork item={item} />
+      {item.eyebrow && <small>{item.eyebrow}</small>}
+      <strong>{item.title}</strong>
+      <span>{item.subtitle}</span>
+    </button>
+  );
+}
+
+function Shelf({ title, items, onSelect, wide = false }: { title: string; items: CatalogItem[]; onSelect: (item: CatalogItem) => void; wide?: boolean }) {
+  return (
+    <section className="content-section">
+      <SectionTitle title={title} action="See All" />
+      <div className={`media-shelf ${wide ? "wide-shelf" : ""}`}>
+        {items.map((item) => <MediaCard key={item.id} item={item} onSelect={onSelect} wide={wide} />)}
+      </div>
+    </section>
+  );
+}
+
+function HomeView({ onSelect }: { onSelect: (item: CatalogItem) => void }) {
+  return (
+    <>
+      <section className="editorial-hero">
+        <button type="button" className="hero-story hero-primary" onClick={() => onSelect(madeForYou[0])}>
+          <div><small>LISTEN NOW</small><h2>Your music.<br />More personal than ever.</h2><p>A continuous mix built around what you love right now.</p></div>
+          <CatalogArtwork item={madeForYou[0]} />
+        </button>
+        <button type="button" className="hero-story hero-secondary" onClick={() => onSelect(recentlyPlayed[0])}>
+          <div><small>RECENT FAVORITE</small><h3>Midnight Tide</h3><p>Kron</p></div>
+          <CatalogArtwork item={recentlyPlayed[0]} />
+        </button>
+      </section>
+      <Shelf title="Recently Played" items={recentlyPlayed} onSelect={onSelect} />
+      <Shelf title="Made for You" items={madeForYou} onSelect={onSelect} wide />
+      <Shelf title="New Releases for You" items={newReleases} onSelect={onSelect} />
+    </>
+  );
+}
+
+function NewView({ onSelect }: { onSelect: (item: CatalogItem) => void }) {
+  return (
+    <>
+      <section className="new-feature-grid">
+        {newReleases.slice(0, 2).map((item, index) => (
+          <button type="button" className={`new-feature feature-${index + 1}`} key={item.id} onClick={() => onSelect(item)}>
+            <div><small>NEW ALBUM</small><h2>{item.title}</h2><p>{item.subtitle}</p></div>
+            <CatalogArtwork item={item} />
+          </button>
+        ))}
+      </section>
+      <Shelf title="New Music" items={newReleases} onSelect={onSelect} />
+      <section className="content-section">
+        <SectionTitle title="Daily Top 100" action="See All" />
+        <div className="chart-list">
+          {recentlyPlayed.slice(0, 5).map((item, index) => (
+            <button type="button" key={item.id} onClick={() => onSelect(item)}>
+              <b>{index + 1}</b><CatalogArtwork item={item} /><div><strong>{item.title}</strong><span>{item.subtitle}</span></div><Glyph name="more" />
+            </button>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function RadioView({ onSelect }: { onSelect: (item: CatalogItem) => void }) {
+  return (
+    <>
+      <section className="radio-hero">
+        <button type="button" onClick={() => onSelect(radioStations[0])}>
+          <div><span className="live-dot" />LIVE NOW</div>
+          <h2>Apple Music 1</h2>
+          <p>Global sounds. Artist conversations. The music moving culture forward.</p>
+          <CatalogArtwork item={radioStations[0]} />
+        </button>
+      </section>
+      <Shelf title="Live Radio" items={radioStations} onSelect={onSelect} wide />
+      <Shelf title="Stations for You" items={madeForYou.slice(1)} onSelect={onSelect} />
+    </>
+  );
+}
+
+function LibraryView({ onSelect, onImport }: { onSelect: (item: CatalogItem) => void; onImport: () => void }) {
+  return (
+    <>
+      <section className="library-list glass-list">
+        {librarySections.map(([label], index) => (
+          <button type="button" key={label} onClick={() => index === 0 ? onSelect(madeForYou[0]) : undefined}>
+            <span className="library-icon"><Glyph name={index === 5 ? "download" : index === 3 ? "new" : "library"} /></span>
+            <strong>{label}</strong><Glyph name="next" />
+          </button>
+        ))}
+      </section>
+      <div className="library-actions"><button type="button" className="glass-button accent" onClick={onImport}><Glyph name="add" /> Add Music</button></div>
+      <Shelf title="Recently Added" items={newReleases} onSelect={onSelect} />
+    </>
+  );
+}
+
+function SearchView({ onSelect }: { onSelect: (item: CatalogItem) => void }) {
+  const [query, setQuery] = useState("");
+  const results = [...recentlyPlayed, ...newReleases, ...madeForYou].filter((item) => `${item.title} ${item.subtitle}`.toLowerCase().includes(query.toLowerCase()));
+  return (
+    <>
+      <label className="search-field"><Glyph name="search" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Artists, Songs, Lyrics, and More" /><button type="button" onClick={() => setQuery("")}>{query ? "×" : ""}</button></label>
+      {query ? (
+        <section className="search-results">
+          <SectionTitle title="Top Results" />
+          <div className="result-list">
+            {results.map((item) => <button type="button" key={item.id} onClick={() => onSelect(item)}><CatalogArtwork item={item} /><div><strong>{item.title}</strong><span>{item.kind} · {item.subtitle}</span></div><Glyph name="more" /></button>)}
+          </div>
+        </section>
+      ) : (
+        <section className="content-section">
+          <SectionTitle title="Browse Categories" />
+          <div className="category-grid">
+            {browseCategories.map(([label, className]) => <button type="button" key={label} className={className}><strong>{label}</strong><span>♫</span></button>)}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+function DetailView({ item, onBack, onPlay }: { item: CatalogItem; onBack: () => void; onPlay: () => void }) {
+  return (
+    <div className="detail-view">
+      <button type="button" className="back-link" onClick={onBack}><Glyph name="back" /> Back</button>
+      <section className="detail-hero">
+        <CatalogArtwork item={item} />
+        <div><small>{item.kind?.toUpperCase()}</small><h1>{item.title}</h1><h3>{item.subtitle}</h3><p>A carefully sequenced collection with seamless transitions, synchronized lyrics, and immersive playback.</p><div className="detail-actions"><button type="button" className="glass-button accent" onClick={onPlay}><Glyph name="play" /> Play</button><button type="button" className="glass-button"><Glyph name="shuffle" /> Shuffle</button><button type="button" className="round-button"><Glyph name="more" /></button></div></div>
+      </section>
+      <div className="track-list">
+        {demoTracks.map(([title, artist, time], index) => <button type="button" key={title} onClick={onPlay}><b>{index + 1}</b><div><strong>{title}</strong><span>{artist}</span></div><span>{time}</span><Glyph name="more" /></button>)}
+      </div>
+      <div className="detail-notes"><strong>2026 · 6 songs · 6 minutes</strong><span>Lossless · Dolby Atmos</span></div>
+    </div>
+  );
+}
+
 export default function App() {
   const initialTrack = useMemo(trackFromQuery, []);
-  const [playlist, setPlaylist] = useState<Track[]>([initialTrack]);
-  const [trackIndex, setTrackIndex] = useState(0);
-  const track = playlist[trackIndex] ?? initialTrack;
+  const [tab, setTab] = useState<Tab>("home");
+  const [overlay, setOverlay] = useState<Overlay>(null);
+  const [selected, setSelected] = useState<CatalogItem | null>(null);
+  const [track, setTrack] = useState<Track>(initialTrack);
   const [lyricLines, setLyricLines] = useState<LyricLine[]>(fallbackLines);
   const [currentTime, setCurrentTime] = useState(0);
-  const currentTimeRef = useRef(0);
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [controlsVisible, setControlsVisible] = useState(true);
+  const [volume, setVolume] = useState(0.82);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [ambientEnabled, setAmbientEnabled] = useState(true);
-  const [lyricAlignPosition, setLyricAlignPosition] = useState(0.48);
+  const [compactNav, setCompactNav] = useState(false);
+  const [error, setError] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
   const syncLyricsRef = useRef<((time: number, isSeek?: boolean) => void) | null>(null);
-  const hideTimerRef = useRef<number | null>(null);
-  const objectUrlsRef = useRef<string[]>([]);
   const importInputRef = useRef<HTMLInputElement>(null);
-  const coverRef = useRef<HTMLDivElement>(null);
-  const lyricStageRef = useRef<HTMLElement>(null);
+  const objectUrlsRef = useRef<string[]>([]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -294,45 +394,6 @@ export default function App() {
     update();
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
-  }, []);
-
-  const showControls = useCallback(() => {
-    setControlsVisible(true);
-    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-    if (playing && !reducedMotion) {
-      hideTimerRef.current = window.setTimeout(() => setControlsVisible(false), 3600);
-    }
-  }, [playing, reducedMotion]);
-
-  useEffect(() => {
-    showControls();
-    return () => {
-      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-    };
-  }, [showControls]);
-
-  useLayoutEffect(() => {
-    const cover = coverRef.current;
-    const lyrics = lyricStageRef.current;
-    if (!cover || !lyrics) return;
-
-    const updateAlignment = () => {
-      const coverBox = cover.getBoundingClientRect();
-      const lyricBox = lyrics.getBoundingClientRect();
-      if (!lyricBox.height) return;
-      const next = (coverBox.top + coverBox.height / 2 - lyricBox.top) / lyricBox.height;
-      setLyricAlignPosition(clamp(next, 0.28, 0.72));
-    };
-
-    updateAlignment();
-    const observer = new ResizeObserver(updateAlignment);
-    observer.observe(cover);
-    observer.observe(lyrics);
-    window.addEventListener("resize", updateAlignment);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateAlignment);
-    };
   }, []);
 
   useEffect(() => {
@@ -343,281 +404,216 @@ export default function App() {
     audio.load();
     setPlaying(false);
     setCurrentTime(0);
-    currentTimeRef.current = 0;
     setDuration(0);
     setError("");
-    setLoading(true);
   }, [track.audio]);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     fetch(track.lyric)
       .then((response) => {
         if (!response.ok) throw new Error(`Lyrics request failed (${response.status})`);
         return response.text();
       })
       .then((text) => {
-        if (!cancelled) {
-          const lines = parseLyricText(text, track.lyricName ?? track.lyric);
-          setLyricLines(lines.length ? lines : fallbackLines());
-          setLoading(false);
-        }
+        if (!cancelled) setLyricLines(parseLyricText(text, track.lyricName ?? track.lyric));
       })
       .catch(() => {
         if (!cancelled) {
           setLyricLines(fallbackLines());
-          setLoading(false);
-          setError("歌词加载失败，已显示示例歌词");
+          setError("Lyrics unavailable");
         }
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [track.lyric, track.lyricName]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    const syncPosition = () => {
-      const next = audio.currentTime || 0;
-      currentTimeRef.current = next;
-      setCurrentTime(next);
+    audio.volume = volume;
+  }, [volume]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const sync = () => {
+      setCurrentTime(audio.currentTime || 0);
+      syncLyricsRef.current?.((audio.currentTime || 0) * 1000);
     };
-    const onMetadata = () => {
+    const metadata = () => {
       setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
-      syncPosition();
-      syncLyricsRef.current?.(audio.currentTime * 1000, true);
-      setLoading(false);
+      syncLyricsRef.current?.((audio.currentTime || 0) * 1000, true);
     };
-    const onTimeUpdate = () => {
-      syncPosition();
-      syncLyricsRef.current?.(audio.currentTime * 1000);
-    };
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    const onEnded = () => {
+    const ended = () => {
       setPlaying(false);
-      if (trackIndex < playlist.length - 1) setTrackIndex((index) => index + 1);
+      audio.currentTime = 0;
+      setCurrentTime(0);
     };
-    const onError = () => {
-      setLoading(false);
-      setError("音频加载失败，请检查 URL 或重新导入文件");
-    };
-    audio.addEventListener("loadedmetadata", onMetadata);
-    audio.addEventListener("durationchange", onMetadata);
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("ended", onEnded);
-    audio.addEventListener("error", onError);
+    const fail = () => setError("Audio unavailable — import a local file");
+    audio.addEventListener("loadedmetadata", metadata);
+    audio.addEventListener("durationchange", metadata);
+    audio.addEventListener("timeupdate", sync);
+    audio.addEventListener("play", () => setPlaying(true));
+    audio.addEventListener("pause", () => setPlaying(false));
+    audio.addEventListener("ended", ended);
+    audio.addEventListener("error", fail);
     return () => {
-      audio.removeEventListener("loadedmetadata", onMetadata);
-      audio.removeEventListener("durationchange", onMetadata);
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("error", onError);
+      audio.removeEventListener("loadedmetadata", metadata);
+      audio.removeEventListener("durationchange", metadata);
+      audio.removeEventListener("timeupdate", sync);
+      audio.removeEventListener("ended", ended);
+      audio.removeEventListener("error", fail);
     };
-  }, [playlist.length, trackIndex]);
+  }, [track.audio]);
 
   useEffect(() => () => objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url)), []);
 
   const togglePlaying = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
-    showControls();
     if (audio.paused) {
-      try {
-        await audio.play();
-      } catch (reason) {
-        if (reason instanceof DOMException && reason.name === "NotAllowedError") return;
-        setError("音频播放失败，请检查资源格式或重新导入文件");
-      }
-    } else {
-      audio.pause();
-    }
-  }, [showControls]);
+      try { await audio.play(); } catch { setError("Playback blocked — tap Play again or import audio"); }
+    } else audio.pause();
+  }, []);
 
   const seek = useCallback((next: number) => {
     const audio = audioRef.current;
     if (!audio || !Number.isFinite(audio.duration)) return;
     const value = clamp(next, 0, audio.duration);
     audio.currentTime = value;
-    currentTimeRef.current = value;
     setCurrentTime(value);
     syncLyricsRef.current?.(value * 1000, true);
-    showControls();
-  }, [showControls]);
+  }, []);
 
-  const changeTrack = useCallback((direction: number) => {
-    if (playlist.length < 2) {
-      seek(direction < 0 ? 0 : (audioRef.current?.duration ?? 0));
-      return;
-    }
-    setTrackIndex((index) => clamp(index + direction, 0, playlist.length - 1));
-    showControls();
-  }, [playlist.length, seek, showControls]);
+  const selectCatalog = useCallback((item: CatalogItem) => {
+    setTrack({ ...DEMO_TRACK, title: item.title, artist: item.subtitle, art: item.art });
+    setSelected(item);
+  }, []);
+
+  const playCatalog = useCallback(async (item?: CatalogItem) => {
+    if (item) setTrack({ ...DEMO_TRACK, title: item.title, artist: item.subtitle, art: item.art });
+    setSelected(null);
+    setOverlay("player");
+    window.setTimeout(() => { void audioRef.current?.play(); }, 60);
+  }, []);
 
   const handleImport = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     if (!files.length) return;
-    const audioFiles = files.filter((file) => file.type.startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(file.name));
-    const lyricFile = files.find((file) => file.type.includes("text") || /\.(lrc|ttml|dfxp)$/i.test(file.name));
-    const coverFile = files.find((file) => file.type.startsWith("image/"));
-    const lyricUrl = lyricFile ? URL.createObjectURL(lyricFile) : track.lyric;
-    const coverUrl = coverFile ? URL.createObjectURL(coverFile) : track.cover;
-    const title = audioFiles[0] ? getFileTitle(audioFiles[0].name) : track.title;
-    const artist = audioFiles[0] ? "Local file" : track.artist;
-    const importedTracks: Track[] = (audioFiles.length ? audioFiles : [null]).map((file) => ({
-      audio: file ? URL.createObjectURL(file) : track.audio,
+    const audio = files.find((file) => file.type.startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(file.name));
+    const lyric = files.find((file) => /\.(lrc|ttml|dfxp)$/i.test(file.name));
+    const cover = files.find((file) => file.type.startsWith("image/"));
+    const audioUrl = audio ? URL.createObjectURL(audio) : track.audio;
+    const lyricUrl = lyric ? URL.createObjectURL(lyric) : track.lyric;
+    const coverUrl = cover ? URL.createObjectURL(cover) : track.cover;
+    [audioUrl, lyricUrl, coverUrl].filter((url) => url.startsWith("blob:")).forEach((url) => objectUrlsRef.current.push(url));
+    setTrack({
+      audio: audioUrl,
       lyric: lyricUrl,
-      lyricName: lyricFile?.name ?? track.lyricName,
+      lyricName: lyric?.name,
       cover: coverUrl,
-      title: file ? getFileTitle(file.name) : title,
-      artist,
-    }));
-    objectUrlsRef.current.push(...importedTracks.map((item) => item.audio).filter((url) => url.startsWith("blob:")));
-    if (lyricFile) objectUrlsRef.current.push(lyricUrl);
-    if (coverFile) objectUrlsRef.current.push(coverUrl);
-    setPlaylist(importedTracks);
-    setTrackIndex(0);
+      title: audio ? getFileTitle(audio.name) : track.title,
+      artist: audio ? "Local Music" : track.artist,
+      art: cover ? undefined : track.art,
+    });
+    setSelected(null);
+    setOverlay("player");
     event.target.value = "";
-    showControls();
-  }, [showControls, track]);
+  }, [track]);
 
+  const title = selected ? selected.title : ({ home: "Home", new: "New", radio: "Radio", library: "Library", search: "Search" } as const)[tab];
   const progress = duration ? currentTime / duration : 0;
-  const shellClass = `player-shell ${playing ? "is-playing" : ""} ${ambientEnabled ? "ambient-on" : "ambient-off"}`;
-  const chromeClass = controlsVisible ? "visible" : "hidden";
+
+  const renderView = () => {
+    if (selected) return <DetailView item={selected} onBack={() => setSelected(null)} onPlay={() => playCatalog(selected)} />;
+    if (tab === "home") return <HomeView onSelect={selectCatalog} />;
+    if (tab === "new") return <NewView onSelect={selectCatalog} />;
+    if (tab === "radio") return <RadioView onSelect={selectCatalog} />;
+    if (tab === "library") return <LibraryView onSelect={selectCatalog} onImport={() => importInputRef.current?.click()} />;
+    return <SearchView onSelect={selectCatalog} />;
+  };
+
+  const navItems: [Tab, GlyphName, string][] = [
+    ["home", "home", "Home"],
+    ["new", "new", "New"],
+    ["radio", "radio", "Radio"],
+    ["library", "library", "Library"],
+    ["search", "search", "Search"],
+  ];
 
   return (
-    <main
-      className={shellClass}
-      onPointerMove={showControls}
-      onPointerDown={showControls}
-      onKeyDown={showControls}
-      tabIndex={-1}
-    >
-      <div className="fallback-gradient" aria-hidden="true" />
-      <BackgroundRender
-        className="amll-background"
-        album={track.cover}
-        playing={playing}
-        staticMode={reducedMotion || !ambientEnabled}
-        fps={reducedMotion ? 1 : 60}
-      />
-      <div className="background-wash" aria-hidden="true" />
+    <main className="music-app">
+      <div className="app-aurora" aria-hidden="true" />
+      <aside className="desktop-sidebar glass-surface">
+        <div className="music-mark"><span>♫</span><strong>Music</strong></div>
+        <nav>{navItems.map(([id, icon, label]) => <button type="button" key={id} className={tab === id && !selected ? "active" : ""} onClick={() => { setTab(id); setSelected(null); }}><Glyph name={icon} /><span>{label}</span></button>)}</nav>
+        <div className="sidebar-spacer" />
+        <button type="button" className="sidebar-account" onClick={() => setOverlay("account")}><span>K</span><div><strong>Kron</strong><small>View Account</small></div></button>
+      </aside>
 
-      <button
-        className={`menu-button chrome ${chromeClass}`}
-        aria-label="Import music, lyrics, or cover"
-        onClick={() => importInputRef.current?.click()}
-      >
-        <MenuIcon />
-      </button>
-      <input
-        ref={importInputRef}
-        className="visually-hidden"
-        type="file"
-        multiple
-        accept="audio/*,image/*,.lrc,.ttml,.dfxp"
-        onChange={handleImport}
-      />
-
-      <nav className={`side-rail side-rail-left chrome ${chromeClass}`} aria-label="Playback shortcuts">
-        <button aria-label="Next track" onClick={() => changeTrack(1)}><ChevronIcon direction="right" /></button>
-        <button aria-label="Restart track" onClick={() => seek(0)}><RestartIcon /></button>
-        <button aria-label="Previous track" onClick={() => changeTrack(-1)}><ChevronIcon direction="left" /></button>
-      </nav>
-
-      <nav className={`side-rail side-rail-right chrome ${chromeClass}`} aria-label="Ambient controls">
-        <label className="ambient-toggle">
-          <input
-            type="checkbox"
-            checked={ambientEnabled}
-            onChange={(event) => setAmbientEnabled(event.target.checked)}
-          />
-          <span className="toggle-track"><span /></span>
-          <span>AP</span>
-        </label>
-        <button aria-label="Previous track" onClick={() => changeTrack(-1)}><ChevronIcon direction="up" /></button>
-        <button aria-label="Next track" onClick={() => changeTrack(1)}><ChevronIcon direction="down" /></button>
-      </nav>
-
-      <section className="apple-layout">
-        <aside className="player-column">
-          <div className="player-stack">
-            <div className="cover-wrap" ref={coverRef}>
-              <img className="cover-art" src={track.cover} alt={`${track.title} album artwork`} />
-            </div>
-
-            <div className={`player-details chrome ${controlsVisible ? "visible" : "soft"}`}>
-              <div className="track-meta">
-                <h1>{track.title}</h1>
-                <p>{track.artist}</p>
-                {error && <small className="status-message" role="status">{error}</small>}
-              </div>
-
-              <div className="timeline-block">
-                <div className="timeline-labels">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{duration ? `-${formatTime(Math.max(0, duration - currentTime))}` : "--:--"}</span>
-                </div>
-                <input
-                  className="timeline"
-                  type="range"
-                  min={0}
-                  max={duration || 1}
-                  step={0.01}
-                  value={Math.min(currentTime, duration || 1)}
-                  aria-label="Playback position"
-                  style={{ "--progress": `${progress * 100}%` } as CSSProperties}
-                  onChange={(event) => seek(Number(event.target.value))}
-                />
-              </div>
-
-              <div className="transport-row">
-                <button className="utility-button" aria-label="More options" onClick={() => importInputRef.current?.click()}><MoreIcon /></button>
-                <div className="transport-main">
-                  <button aria-label="Previous track" onClick={() => changeTrack(-1)}><PreviousIcon /></button>
-                  <button className="play-button" aria-label={playing ? "Pause" : "Play"} onClick={togglePlaying}>
-                    {playing ? <PauseIcon /> : <PlayIcon />}
-                  </button>
-                  <button aria-label="Next track" onClick={() => changeTrack(1)}><NextIcon /></button>
-                </div>
-                <button className="utility-button" aria-label="Import files" onClick={() => importInputRef.current?.click()}><LyricsIcon /></button>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <section className="lyrics-panel" aria-label="Synced lyrics" ref={lyricStageRef}>
-          <LyricsView
-            audioRef={audioRef}
-            lyricLines={lyricLines}
-            playing={playing}
-            reducedMotion={reducedMotion}
-            alignPosition={lyricAlignPosition}
-            syncRef={syncLyricsRef}
-          />
-        </section>
+      <section className="app-main">
+        <header className="app-header">
+          <div><small>{selected ? selected.kind : "APPLE MUSIC"}</small><h1>{title}</h1></div>
+          <button type="button" className="profile-button glass-surface" onClick={() => setOverlay("account")}>K</button>
+        </header>
+        <div className="scroll-content" onScroll={(event) => setCompactNav(event.currentTarget.scrollTop > 36)}>{renderView()}</div>
       </section>
 
-      <div className={`mobile-bar chrome ${chromeClass}`}>
-        <img src={track.cover} alt="" />
-        <div>
-          <strong>{track.title}</strong>
-          <span>{track.artist}</span>
-        </div>
-        <button aria-label={playing ? "Pause" : "Play"} onClick={togglePlaying}>
-          {playing ? <PauseIcon /> : <PlayIcon />}
-        </button>
-        <button aria-label="Import files" onClick={() => importInputRef.current?.click()}><MenuIcon /></button>
-      </div>
+      <button type="button" className="mini-player glass-surface" onClick={() => setOverlay("player")}>
+        <Artwork item={track} />
+        <div><strong>{track.title}</strong><span>{track.artist}</span></div>
+        <button type="button" aria-label={playing ? "Pause" : "Play"} onClick={(event) => { event.stopPropagation(); void togglePlaying(); }}><Glyph name={playing ? "pause" : "play"} /></button>
+        <button type="button" aria-label="Next"><Glyph name="next" /></button>
+      </button>
 
+      <nav className={`bottom-tabs glass-surface ${compactNav ? "compact" : ""}`}>
+        {navItems.map(([id, icon, label]) => <button type="button" key={id} className={tab === id && !selected ? "active" : ""} onClick={() => { setTab(id); setSelected(null); }}><Glyph name={icon} /><span>{label}</span></button>)}
+      </nav>
+
+      {overlay === "player" && (
+        <section className="full-overlay now-playing" aria-label="Now Playing">
+          <div className="player-backdrop"><BackgroundRender album={track.cover} playing={playing} staticMode={reducedMotion} fps={reducedMotion ? 1 : 45} /><div /></div>
+          <header><button type="button" className="round-button glass-surface" onClick={() => setOverlay(null)}><Glyph name="down" /></button><span>NOW PLAYING</span><button type="button" className="round-button glass-surface"><Glyph name="more" /></button></header>
+          <div className="now-playing-grid">
+            <div className="now-art"><Artwork item={track} /></div>
+            <div className="now-controls">
+              <div className="now-meta"><div><h2>{track.title}</h2><p>{track.artist}</p></div><button type="button" className="round-button"><Glyph name="more" /></button></div>
+              {error && <small className="error-message">{error}</small>}
+              <div className="now-progress"><input type="range" min={0} max={duration || 1} step={0.01} value={Math.min(currentTime, duration || 1)} style={{ "--progress": `${progress * 100}%` } as CSSProperties} onChange={(event) => seek(Number(event.target.value))} /><div><span>{formatTime(currentTime)}</span><span>-{formatTime(Math.max(0, duration - currentTime))}</span></div></div>
+              <div className="primary-controls"><button type="button"><Glyph name="previous" /></button><button type="button" className="play-control glass-surface" onClick={() => void togglePlaying()}><Glyph name={playing ? "pause" : "play"} /></button><button type="button"><Glyph name="next" /></button></div>
+              <div className="volume-row"><Glyph name="volumeLow" /><input type="range" min={0} max={1} step={0.01} value={volume} onChange={(event) => setVolume(Number(event.target.value))} /><Glyph name="volumeHigh" /></div>
+              <div className="secondary-controls"><button type="button" onClick={() => setOverlay("lyrics")}><Glyph name="lyrics" /><span>Lyrics</span></button><button type="button" onClick={() => setOverlay("queue")}><Glyph name="queue" /><span>Playing Next</span></button></div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {overlay === "lyrics" && (
+        <section className="full-overlay lyrics-overlay">
+          <div className="player-backdrop"><BackgroundRender album={track.cover} playing={playing} staticMode={reducedMotion} fps={reducedMotion ? 1 : 45} /><div /></div>
+          <header><button type="button" className="round-button glass-surface" onClick={() => setOverlay("player")}><Glyph name="down" /></button><span>LYRICS</span><button type="button" className="round-button glass-surface"><Glyph name="more" /></button></header>
+          <div className="lyrics-layout">
+            <aside className="lyrics-summary"><Artwork item={track} /><h2>{track.title}</h2><p>{track.artist}</p><div className="compact-controls"><button type="button"><Glyph name="previous" /></button><button type="button" onClick={() => void togglePlaying()}><Glyph name={playing ? "pause" : "play"} /></button><button type="button"><Glyph name="next" /></button></div></aside>
+            <div className="lyrics-canvas"><LyricsView audioRef={audioRef} lyricLines={lyricLines} playing={playing} syncRef={syncLyricsRef} reducedMotion={reducedMotion} alignPosition={0.47} /></div>
+          </div>
+          <div className="lyrics-footer glass-surface"><Artwork item={track} /><div><strong>{track.title}</strong><span>{track.artist}</span></div><button type="button" onClick={() => void togglePlaying()}><Glyph name={playing ? "pause" : "play"} /></button><button type="button" onClick={() => setOverlay("queue")}><Glyph name="queue" /></button></div>
+        </section>
+      )}
+
+      {overlay === "queue" && (
+        <div className="modal-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) setOverlay("player"); }}>
+          <aside className="sheet queue-sheet glass-surface"><div className="sheet-handle" /><header><div><small>PLAYING NEXT</small><h2>Up Next</h2></div><button type="button" onClick={() => setOverlay("player")}>Done</button></header><div className="queue-current"><Artwork item={track} /><div><strong>{track.title}</strong><span>{track.artist}</span></div><span className="playing-bars"><i /><i /><i /></span></div><h3>Next</h3>{demoTracks.slice(1).map(([song, artist]) => <button type="button" className="queue-row" key={song}><div className="queue-placeholder">♫</div><div><strong>{song}</strong><span>{artist}</span></div><Glyph name="more" /></button>)}</aside>
+        </div>
+      )}
+
+      {overlay === "account" && (
+        <div className="modal-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) setOverlay(null); }}>
+          <aside className="sheet account-sheet glass-surface"><div className="sheet-handle" /><header><h2>Account</h2><button type="button" onClick={() => setOverlay(null)}>Done</button></header><div className="account-identity"><span>K</span><div><strong>Kron</strong><small>Apple Music Subscriber</small></div></div>{["Manage Subscription", "Audio Quality", "Notifications", "Redeem Gift Card or Code", "Privacy & Settings"].map((label) => <button type="button" className="settings-row" key={label}><span>{label}</span><Glyph name="next" /></button>)}</aside>
+        </div>
+      )}
+
+      <input ref={importInputRef} className="visually-hidden" type="file" multiple accept="audio/*,image/*,.lrc,.ttml,.dfxp" onChange={handleImport} />
       <audio ref={audioRef} preload="metadata" aria-label={`${track.title} audio`} />
-      {loading && <div className="loading-indicator" aria-label="Loading"><span /><span /></div>}
     </main>
   );
 }
